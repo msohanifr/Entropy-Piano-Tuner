@@ -57,6 +57,7 @@ EntropyMinimizer::EntropyMinimizer(const Piano &piano,
     mAccumulator(NumberOfBins),
     mPitch(mNumberOfKeys),
     mInitialPitch(mNumberOfKeys),
+    mRecordingWeights(mNumberOfKeys, 1.0),
     mRecalculateEntropy(false),
     mRecalculateKey(-1),
     mRecalculateFrequency(0)
@@ -218,6 +219,9 @@ bool EntropyMinimizer::performAuditoryPreprocessing()
     AP.extrapolateInharmonicity();
     if (cancelThread()) return false;
 
+    LogI("EntropyMinimizer: Compute recording reliability weights");
+    computeRecordingWeights();
+
 #if CONFIG_ENABLE_XMGRACE
     std::ofstream os("0-measured-inharmonicity.dat");
     for (int k=0; k < mNumberOfKeys; ++k)
@@ -317,6 +321,114 @@ double EntropyMinimizer::getElement (SpectrumType &spectrum, int m)
 
 
 //-----------------------------------------------------------------------------
+//              Compute reliability weights for recorded spectra
+//-----------------------------------------------------------------------------
+
+double EntropyMinimizer::computeBaseRecordingWeight(const Key &key) const
+{
+    const double quality = key.getRecognitionQuality();
+    const size_t peakCount = key.getPeaks().size();
+    double weight = 1.0;
+
+    if (quality > 0) {
+        if (quality <= 6) weight *= 1.0;
+        else if (quality <= 12) weight *= 0.85;
+        else if (quality <= 25) weight *= 0.55;
+        else weight *= 0.25;
+    } else {
+        weight *= 0.7;
+    }
+
+    if (peakCount >= 8) weight *= 1.0;
+    else if (peakCount >= 5) weight *= 0.85;
+    else if (peakCount >= 3) weight *= 0.65;
+    else weight *= 0.35;
+
+    if (key.getMeasuredInharmonicity() <= 0) weight *= 0.5;
+
+    return std::max(0.1, std::min(1.0, weight));
+}
+
+double EntropyMinimizer::computeFrequencyContinuityWeight(int keynumber) const
+{
+    const double pitch = getRecordedPitchET440(keynumber);
+    double sum = 0;
+    int count = 0;
+
+    for (int offset : {-2, -1, 1, 2}) {
+        const int k = keynumber + offset;
+        if (k < 0 || k >= mNumberOfKeys) continue;
+        sum += getRecordedPitchET440(k);
+        ++count;
+    }
+
+    if (count < 2) return 1.0;
+
+    const double expected = sum / count;
+    const double delta = fabs(pitch - expected);
+    if (delta <= 8) return 1.0;
+    if (delta <= 15) return 0.75;
+    if (delta <= 25) return 0.45;
+    return 0.2;
+}
+
+double EntropyMinimizer::computeInharmonicityContinuityWeight(int keynumber) const
+{
+    const double B = mKeys[keynumber].getMeasuredInharmonicity();
+    if (B <= 0) return 0.5;
+
+    double sum = 0;
+    int count = 0;
+
+    for (int offset : {-2, -1, 1, 2}) {
+        const int k = keynumber + offset;
+        if (k < 0 || k >= mNumberOfKeys) continue;
+        const double neighborB = mKeys[k].getMeasuredInharmonicity();
+        if (neighborB <= 0) continue;
+        sum += log(neighborB);
+        ++count;
+    }
+
+    if (count < 2) return 1.0;
+
+    const double expected = exp(sum / count);
+    const double ratio = fabs(log(B / expected));
+    if (ratio <= 0.25) return 1.0;
+    if (ratio <= 0.45) return 0.75;
+    if (ratio <= 0.75) return 0.45;
+    return 0.2;
+}
+
+void EntropyMinimizer::computeRecordingWeights()
+{
+    mRecordingWeights.assign(mNumberOfKeys, 1.0);
+
+    for (int k=0; k<mNumberOfKeys; ++k)
+    {
+        double weight = computeBaseRecordingWeight(mKeys[k]);
+        weight *= computeFrequencyContinuityWeight(k);
+        weight *= computeInharmonicityContinuityWeight(k);
+        mRecordingWeights[k] = std::max(0.08, std::min(1.0, weight));
+
+        if (mRecordingWeights[k] < 0.5)
+        {
+            LogW("Key %d: Low recording reliability weight %f (quality=%f, peaks=%d).",
+                 k,
+                 mRecordingWeights[k],
+                 mKeys[k].getRecognitionQuality(),
+                 static_cast<int>(mKeys[k].getPeaks().size()));
+        }
+    }
+}
+
+double EntropyMinimizer::getRecordingWeight(int keynumber) const
+{
+    if (keynumber < 0 || keynumber >= static_cast<int>(mRecordingWeights.size())) return 1.0;
+    return mRecordingWeights[keynumber];
+}
+
+
+//-----------------------------------------------------------------------------
 //                     Add spectrum to the accumulator
 //-----------------------------------------------------------------------------
 
@@ -359,8 +471,9 @@ void EntropyMinimizer::modifySpectralComponent (int keynumber,
     int    old_pitchdiff = mPitch[keynumber] - recorded_pitch;
     int    new_pitchdiff = pitch             - recorded_pitch;
 
-    addToAccumulator(spectrum,old_pitchdiff,-1);
-    addToAccumulator(spectrum,new_pitchdiff,1);
+    const double weight = getRecordingWeight(keynumber);
+    addToAccumulator(spectrum,old_pitchdiff,-weight);
+    addToAccumulator(spectrum,new_pitchdiff,weight);
     mPitch[keynumber] = pitch;
 }
 
@@ -379,7 +492,7 @@ void EntropyMinimizer::setAllSpectralComponents ()
         int  recorded_pitch  = getRecordedPitchET440AsInt(k);
         int pitchdiff = mPitch[k] - recorded_pitch;
 
-        addToAccumulator(spectrum,pitchdiff,1);
+        addToAccumulator(spectrum,pitchdiff,getRecordingWeight(k));
     }
 }
 
@@ -716,7 +829,7 @@ void EntropyMinimizer::minimizeEntropy ()
 /// \return Pitch in cents
 ///////////////////////////////////////////////////////////////////////////////
 
-double EntropyMinimizer::getRecordedPitchET440(int keynumber)
+double EntropyMinimizer::getRecordedPitchET440(int keynumber) const
 {
     double ET440 = 440.0 * pow(2,1.0/12.0*(keynumber-mKeyNumberOfA4));
     double frec = mKeys[keynumber].getRecordedFrequency();

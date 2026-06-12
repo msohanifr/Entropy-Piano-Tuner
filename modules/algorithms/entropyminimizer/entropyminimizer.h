@@ -75,6 +75,11 @@ private:
     void updateTuningcurve ();
     void clear();
     double getElement(SpectrumType &spectrum, int m);
+    void computeRecordingWeights();
+    double computeBaseRecordingWeight(const Key &key) const;
+    double computeFrequencyContinuityWeight(int keynumber) const;
+    double computeInharmonicityContinuityWeight(int keynumber) const;
+    double getRecordingWeight(int keynumber) const;
     void addToAccumulator (SpectrumType &spectrum, int shift, double intensity);
     void modifySpectralComponent (int key, int pitch);
     void setAllSpectralComponents();
@@ -87,13 +92,14 @@ private:
     SpectrumType mAccumulator;          ///< Accumulator holding the sum of all spectra
     std::vector<int> mPitch;            ///< Vector of pitches (in cents)
     std::vector<double>mInitialPitch;   ///< Vector of initial pitches
+    std::vector<double> mRecordingWeights; ///< Reliability weights for recorded spectra
     int mLowerCutoff;                   ///< Lower cutoff for fluctuations
     int mUpperCutoff;                   ///< Upper cutoff for fluctuations
     bool mRecalculateEntropy;           ///< Flag for entropy recalculation (after manual intervention by the user)
     int mRecalculateKey;                ///< Number of manually changed key
     double mRecalculateFrequency;       ///< Frequency of manually changed key
 
-    double getRecordedPitchET440(int keynumber);               ///< Get recorded pitch
+    double getRecordedPitchET440(int keynumber) const;         ///< Get recorded pitch
     int    getRecordedPitchET440AsInt(int keynumber);          ///< Get recorded pitch
     int getPitchET440(int keynumber, double f);                ///< Get pitch from frequ
 
