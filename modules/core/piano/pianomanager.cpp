@@ -200,14 +200,12 @@ void PianoManager::handleNewKey (int keynumber, std::shared_ptr<Key> keyptr)
     }
     else if (mOperationMode == MODE_TUNING)
     {
-        double frequency = keyptr->getTunedFrequency();
         double overpull  = keyptr->getOverpull();
         double tuned  = keyptr->getTunedFrequency();
         Key* keypointer = mPiano.getKeyPtr(keynumber);
         if (keynumber==mSelectedKey or mForcedRecording)
-            keypointer->setTunedFrequency(frequency);
+            keypointer->setTunedFrequency(tuned);
         keypointer->setOverpull(overpull);
-        keypointer->setTunedFrequency(tuned);
         MessageHandler::send<MessageKeyDataChanged>(keynumber, keypointer);
 
     }

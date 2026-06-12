@@ -58,6 +58,7 @@ private:
 
     void ComputeInitialTuningCurve ();
     void minimizeEntropy ();
+    void regularizeTuningCurveSpacing();
 
     using SpectrumType = Key::SpectrumType;
     using Keys = Keyboard::Keys;
@@ -87,6 +88,8 @@ private:
     int  getTolerance (int keynumber);
 
     double computeEntropy();
+    int getMinimumSemitoneSpacing(int lowerKeynumber) const;
+    int getMaximumSemitoneSpacing(int lowerKeynumber) const;
 
 private:
     SpectrumType mAccumulator;          ///< Accumulator holding the sum of all spectra

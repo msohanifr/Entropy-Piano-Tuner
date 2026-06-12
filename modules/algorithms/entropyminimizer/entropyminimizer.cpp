@@ -109,6 +109,9 @@ void EntropyMinimizer::algorithmWorkerFunction()
         LogI("Start entropy minimization");
         minimizeEntropy();
 
+        LogI("Regularize tuning curve spacing");
+        regularizeTuningCurveSpacing();
+
         LogI("CalculationManager: Stop calculation");
     }
 }
@@ -604,6 +607,71 @@ int EntropyMinimizer::getTolerance (int keynumber)
     int dkey = keynumber - mKeyNumberOfA4;
     return MathTools::roundToInteger(dkey<0 ? f(a1,b1,dkey) : f(a2,b2,dkey));
 
+}
+
+
+//-----------------------------------------------------------------------------
+//        Define allowed semitone spacing of the resulting tuning curve
+//-----------------------------------------------------------------------------
+
+int EntropyMinimizer::getMinimumSemitoneSpacing(int lowerKeynumber) const
+{
+    if (lowerKeynumber < mKeyNumberOfA4 - 24) return 82;
+    if (lowerKeynumber < mKeyNumberOfA4 - 12) return 78;
+    return 72;
+}
+
+int EntropyMinimizer::getMaximumSemitoneSpacing(int lowerKeynumber) const
+{
+    if (lowerKeynumber < mKeyNumberOfA4 - 24) return 128;
+    if (lowerKeynumber < mKeyNumberOfA4 - 12) return 132;
+    return 138;
+}
+
+void EntropyMinimizer::regularizeTuningCurveSpacing()
+{
+    if (mPitch.size() != static_cast<size_t>(mNumberOfKeys) || mKeyNumberOfA4 < 0) {
+        return;
+    }
+
+    std::vector<double> absolutePitch(mNumberOfKeys, 0);
+    for (int k=0; k<mNumberOfKeys; ++k) {
+        absolutePitch[k] = 100.0 * (k - mKeyNumberOfA4) + mPitch[k];
+    }
+
+    for (int k=mKeyNumberOfA4-1; k>=0; --k)
+    {
+        const int minimum = getMinimumSemitoneSpacing(k);
+        const int maximum = getMaximumSemitoneSpacing(k);
+        const double step = absolutePitch[k+1] - absolutePitch[k];
+
+        if (step < minimum) absolutePitch[k] = absolutePitch[k+1] - minimum;
+        else if (step > maximum) absolutePitch[k] = absolutePitch[k+1] - maximum;
+    }
+
+    for (int k=mKeyNumberOfA4+1; k<mNumberOfKeys; ++k)
+    {
+        const int lowerKey = k - 1;
+        const int minimum = getMinimumSemitoneSpacing(lowerKey);
+        const int maximum = getMaximumSemitoneSpacing(lowerKey);
+        const double step = absolutePitch[k] - absolutePitch[k-1];
+
+        if (step < minimum) absolutePitch[k] = absolutePitch[k-1] + minimum;
+        else if (step > maximum) absolutePitch[k] = absolutePitch[k-1] + maximum;
+    }
+
+    for (int k=0; k<mNumberOfKeys; ++k)
+    {
+        const int oldPitch = mPitch[k];
+        mPitch[k] = MathTools::roundToInteger(absolutePitch[k] - 100.0 * (k - mKeyNumberOfA4));
+
+        if (mPitch[k] != oldPitch)
+        {
+            LogI("Key %d: Regularized tuning curve from %d cents to %d cents.",
+                 k, oldPitch, mPitch[k]);
+            updateTuningcurve(k);
+        }
+    }
 }
 
 //-----------------------------------------------------------------------------
