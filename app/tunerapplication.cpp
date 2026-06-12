@@ -23,6 +23,7 @@
 #include <QDebug>
 #include <QThread>
 #include <QMediaPlayer>
+#include <QAudioOutput>
 #include <QFile>
 #include <QResource>
 #include <QFileOpenEvent>
@@ -203,8 +204,10 @@ void TunerApplication::playStartupSound() {
 
     // play the actual sound
     QMediaPlayer *player = new QMediaPlayer(this);
-    player->setMedia(QUrl::fromLocalFile(audioFile.fileName()));
-    player->setVolume(50);
+    QAudioOutput *audioOutput = new QAudioOutput(player);
+    audioOutput->setVolume(0.5);
+    player->setAudioOutput(audioOutput);
+    player->setSource(QUrl::fromLocalFile(audioFile.fileName()));
     player->play();
     if (player->error() != QMediaPlayer::NoError) {
         LogW("Error in QMediaPlayer: %s", player->errorString().toStdString().c_str());

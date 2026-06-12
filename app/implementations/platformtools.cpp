@@ -62,7 +62,6 @@ void PlatformTools::openFile(const char *file, bool cached) {
     QMetaObject::invokeMethod(TunerApplication::getSingletonPtr(),
                               "openFile",
                               Qt::QueuedConnection,
-                              QGenericReturnArgument(0),
                               Q_ARG(QString, fileName),
                               Q_ARG(bool, cached));
 }

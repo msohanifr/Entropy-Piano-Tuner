@@ -25,9 +25,11 @@
 #include <QToolButton>
 #include <memory>
 
-#include <QtMidi/qmidiautoconnector.h>
-
 #include "prerequisites.h"
+
+#if EPT_HAS_QTMIDI
+#include <QtMidi/qmidiautoconnector.h>
+#endif
 
 #include "core/config.h"
 #include "core/core.h"
@@ -100,7 +102,9 @@ public:
     /// \return mMidiAutoConnector
     ///
     ///////////////////////////////////////////////////////////////////////////////
+#if EPT_HAS_QTMIDI
     QMidiAutoConnector *getMidiAutoConnector() {return mMidiAutoConnector;}
+#endif
 
 protected:
     ///////////////////////////////////////////////////////////////////////////////
@@ -189,8 +193,10 @@ private:
     /// Tool buttons for all modes.
     QToolButton *mModeToolButtons[OperationMode::MODE_COUNT];
 
+#if EPT_HAS_QTMIDI
     /// Instance of the midi auto connector
     QMidiAutoConnector *mMidiAutoConnector = nullptr;
+#endif
 
 signals:
     void modeChanged(OperationMode mode);
@@ -355,8 +361,10 @@ public slots:
 private slots:
     void onVersionUpdate(VersionInformation information);
 
+#if EPT_HAS_QTMIDI
     void onMidiInputDeviceCreated(const QMidiInput *input);
     void onMidiMessageReceived(const QMidiMessage &message);
+#endif
 };
 
 #endif // MAINWINDOW_H

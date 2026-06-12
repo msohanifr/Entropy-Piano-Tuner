@@ -2,7 +2,8 @@
 #define AUDIOINTERFACEFORQT_H
 
 #include <QObject>
-#include <QAudioDeviceInfo>
+#include <QAudioDevice>
+#include <QMediaDevices>
 
 #include "core/audio/audiointerface.h"
 #include "qtpcmdevice.h"
@@ -15,13 +16,13 @@ public:
     static const int DEFAULT_BUFFER_SIZE_MS;
 
 public:
-    AudioInterfaceForQt(QAudio::Mode mode, QObject *parent);
+    AudioInterfaceForQt(QAudioDevice::Mode mode, QObject *parent);
 
-    void reinitialize(int samplingRate, int channelCount, QAudioDeviceInfo deviceInfo, int bufferSizeMS);
+    void reinitialize(int samplingRate, int channelCount, QAudioDevice deviceInfo, int bufferSizeMS);
     virtual void init() override final;
 
     const QAudioFormat &getFormat() const {return mFormat;}
-    const QAudioDeviceInfo &getDeviceInfo() const {return mDeviceInfo;}
+    const QAudioDevice &getDeviceInfo() const {return mDeviceInfo;}
     int getBufferSizeMS() const;
 
     virtual const std::string getDeviceName() const override final;
@@ -32,14 +33,14 @@ public:
     virtual void setDevice(PCMDevice *device) override final;
 
 protected:
-    virtual QAudio::Error createDevice(const QAudioFormat &format, const QAudioDeviceInfo &info, int bufferSizeMS = -1) = 0;
+    virtual QAudio::Error createDevice(const QAudioFormat &format, const QAudioDevice &info, int bufferSizeMS = -1) = 0;
 
 protected:
-    const QAudio::Mode mMode;
+    const QAudioDevice::Mode mMode;
     const QString mSettingsPrefix;
     QtPCMDevice mPCMDevice;
     QAudioFormat mFormat;
-    QAudioDeviceInfo mDeviceInfo;
+    QAudioDevice mDeviceInfo;
 };
 
 #endif // AUDIOINTERFACEFORQT_H

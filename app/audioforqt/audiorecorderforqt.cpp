@@ -29,7 +29,7 @@
 
 
 AudioRecorderForQt::AudioRecorderForQt(QObject *parent)
-    : AudioInterfaceForQt(QAudio::AudioInput, parent)
+    : AudioInterfaceForQt(QAudioDevice::Input, parent)
     , mAudioInput(nullptr) {
 }
 
@@ -38,12 +38,12 @@ AudioRecorderForQt::~AudioRecorderForQt()
 }
 
 
-QAudio::Error AudioRecorderForQt::createDevice(const QAudioFormat &format, const QAudioDeviceInfo &info, int bufferSizeMS) {
+QAudio::Error AudioRecorderForQt::createDevice(const QAudioFormat &format, const QAudioDevice &info, int bufferSizeMS) {
     Q_UNUSED(bufferSizeMS);
 
-    mAudioInput = new QAudioInput(info, format);
+    mAudioInput = new QAudioSource(info, format);
     if (mAudioInput->error() != QAudio::NoError) {
-        LogE("Error creating QAudioInput with error %d", mAudioInput->error());
+        LogE("Error creating QAudioSource with error %d", mAudioInput->error());
         return mAudioInput->error();
     }
 

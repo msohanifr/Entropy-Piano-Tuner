@@ -48,6 +48,7 @@
 #include <QUrl>
 #include <QTextEdit>
 #include <QTextBrowser>
+#include <QRegularExpression>
 #include <QResource>
 #include <QDialogButtonBox>
 #include <QScroller>
@@ -127,7 +128,7 @@ MainWindow::MainWindow(QWidget *parent) :
     modeScrollArea->setWidget(modeScrollContents);
     modeScrollContents->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
     QVBoxLayout *modeScrollLayout = new QVBoxLayout;
-    modeScrollLayout->setMargin(0);
+    modeScrollLayout->setContentsMargins(0, 0, 0, 0);
     modeScrollLayout->setSpacing(0);
     modeScrollContents->setLayout(modeScrollLayout);
 
@@ -316,9 +317,11 @@ void MainWindow::init(Core *core) {
     EptAssert(core, "Core is required");
     mCore = core;
 
+#if EPT_HAS_QTMIDI
     LogV("Creating QMidiAutoConnector");
     mMidiAutoConnector = new QMidiAutoConnector(this);
     connect(mMidiAutoConnector, &QMidiAutoConnector::inputDeviceCreated, this, &MainWindow::onMidiInputDeviceCreated);
+#endif
 
     qDebug() << "Display size: " << QGuiApplication::primaryScreen()->physicalSize();
 
@@ -729,7 +732,7 @@ void MainWindow::onTutorial() {
     }
 
     // replace media content
-    text.replace(QRegExp("SRC=\"([^\"]*)\""), "SRC=\":/tutorial/\\1\"");
+    text.replace(QRegularExpression("SRC=\"([^\"]*)\""), "SRC=\":/tutorial/\\1\"");
     edit->setText(text);
     edit->setTextInteractionFlags(Qt::LinksAccessibleByMouse | Qt::LinksAccessibleByKeyboard);
 
@@ -846,6 +849,7 @@ void MainWindow::onVersionUpdate(VersionInformation information) {
     }
 }
 
+#if EPT_HAS_QTMIDI
 void MainWindow::onMidiInputDeviceCreated(const QMidiInput *input) {
     connect(input, &QMidiInput::notify, this, &MainWindow::onMidiMessageReceived);
 }
@@ -853,3 +857,4 @@ void MainWindow::onMidiInputDeviceCreated(const QMidiInput *input) {
 void MainWindow::onMidiMessageReceived(const QMidiMessage &message) {
     mCore->getMidiInterface()->receiveMessage(message.byte0(), message.byte1(), message.byte2(), message.timestamp());
 }
+#endif

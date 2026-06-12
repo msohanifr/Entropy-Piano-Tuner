@@ -7,7 +7,7 @@
 #-------------------------------------------------
 
 # Qt modules
-QT          += core gui multimedia widgets concurrent midi
+QT          += core gui multimedia widgets concurrent
 qtHaveModule(svg):QT += svg
 android:QT  += androidextras
 
@@ -112,6 +112,20 @@ macx {
 
     # set plist file
     QMAKE_INFO_PLIST = $$PWD/platforms/osx/Info.plist
+
+    # Bundle local non-Qt dylibs into the app and rewrite load paths so dyld can resolve them.
+    APP_BUNDLE_FRAMEWORKS = $$DESTDIR/$${TARGET}.app/Contents/Frameworks
+    APP_BUNDLE_BIN = $$DESTDIR/$${TARGET}.app/Contents/MacOS/$${TARGET}
+
+    QMAKE_POST_LINK += $$quote($$QMAKE_MKDIR_CMD $$APP_BUNDLE_FRAMEWORKS $$escape_expand(\n\t))
+    QMAKE_POST_LINK += $$quote($$QMAKE_COPY $$EPT_ROOT_OUT_DIR/thirdparty/fftw3/libfftw3.1.0.0.dylib $$APP_BUNDLE_FRAMEWORKS $$escape_expand(\n\t))
+    QMAKE_POST_LINK += $$quote($$QMAKE_COPY $$EPT_ROOT_OUT_DIR/thirdparty/qwt-lib/libqwt.6.1.2.dylib $$APP_BUNDLE_FRAMEWORKS $$escape_expand(\n\t))
+    QMAKE_POST_LINK += $$quote(ln -sf libfftw3.1.0.0.dylib $$APP_BUNDLE_FRAMEWORKS/libfftw3.1.dylib $$escape_expand(\n\t))
+    QMAKE_POST_LINK += $$quote(ln -sf libqwt.6.1.2.dylib $$APP_BUNDLE_FRAMEWORKS/libqwt.6.dylib $$escape_expand(\n\t))
+    QMAKE_POST_LINK += $$quote(install_name_tool -id @rpath/libfftw3.1.dylib $$APP_BUNDLE_FRAMEWORKS/libfftw3.1.0.0.dylib $$escape_expand(\n\t))
+    QMAKE_POST_LINK += $$quote(install_name_tool -id @rpath/libqwt.6.dylib $$APP_BUNDLE_FRAMEWORKS/libqwt.6.1.2.dylib $$escape_expand(\n\t))
+    QMAKE_POST_LINK += $$quote(install_name_tool -change libfftw3.1.dylib @rpath/libfftw3.1.dylib $$APP_BUNDLE_BIN $$escape_expand(\n\t))
+    QMAKE_POST_LINK += $$quote(install_name_tool -change libqwt.6.dylib @rpath/libqwt.6.dylib $$APP_BUNDLE_BIN $$escape_expand(\n\t))
 }
 
 # iOS

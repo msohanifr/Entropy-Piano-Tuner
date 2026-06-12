@@ -27,6 +27,8 @@
 
 namespace options {
 
+#if EPT_HAS_QTMIDI
+
 PageAudioMidi::PageAudioMidi(OptionsDialog *optionsDialog, QMidiAutoConnector *autoConnector)
     : mAutoConnector(autoConnector) {
     QGridLayout *inputLayout = new QGridLayout;
@@ -139,5 +141,30 @@ void PageAudioMidi::inputEventReceived(const QMidiMessage &m) {
 void PageAudioMidi::inputStrenghtUpdateTigger() {
     mInputEventStrengthBar->setValue(std::max<int>(0, mInputEventStrengthBar->value() - 10));
 }
+
+#else
+
+PageAudioMidi::PageAudioMidi(OptionsDialog *optionsDialog)
+{
+    Q_UNUSED(optionsDialog);
+
+    auto *layout = new QGridLayout;
+    setLayout(layout);
+    layout->addWidget(new QLabel(tr("MIDI support is not available in this build."), this), 0, 0);
+    layout->addItem(new QSpacerItem(0, 0, QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding), 1, 0);
+
+    mDeviceSelection = new QComboBox(this);
+    mDeviceSelection->setEnabled(false);
+    mInputEventStrengthBar = new QProgressBar(this);
+    mInputEventStrengthBar->setEnabled(false);
+}
+
+void PageAudioMidi::apply() {
+}
+
+void PageAudioMidi::inputStrenghtUpdateTigger() {
+}
+
+#endif
 
 }  // namespace midi

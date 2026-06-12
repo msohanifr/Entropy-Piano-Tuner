@@ -23,10 +23,19 @@
 #include <QWidget>
 #include <QComboBox>
 #include <QProgressBar>
-#include <QtMidi/qmidisystemnotifier.h>
-#include <QtMidi/qmidiautoconnector.h>
+#include <QLabel>
+#include <QGridLayout>
+#include <QSpacerItem>
+#include <QSizePolicy>
+#include <QVariant>
+#include <QTimer>
 
 #include "prerequisites.h"
+
+#if EPT_HAS_QTMIDI
+#include <QtMidi/qmidisystemnotifier.h>
+#include <QtMidi/qmidiautoconnector.h>
+#endif
 
 #include "core/audio/midi/midiadapter.h"
 
@@ -39,24 +48,32 @@ class PageAudioMidi
         , public ContentsWidgetInterface {
     Q_OBJECT
 public:
+#if EPT_HAS_QTMIDI
     PageAudioMidi(OptionsDialog *optionsDialog, QMidiAutoConnector *autoConnector);
+#else
+    PageAudioMidi(OptionsDialog *optionsDialog);
+#endif
 
     void apply() override final;
 
 signals:
     void inputEventStrenghUpdate(int value);
 protected slots:
+#if EPT_HAS_QTMIDI
     void updateMidiInputDevices();
 
     void inputDeviceAttached(const QMidiDeviceInfo &) {updateMidiInputDevices();}
     void inputDeviceDetached(const QMidiDeviceInfo &) {updateMidiInputDevices();}
     void inputDeviceCreated(const QMidiInput *d);
     void inputEventReceived(const QMidiMessage &m);
+#endif
 
     void inputStrenghtUpdateTigger();
 
 private:
+#if EPT_HAS_QTMIDI
     QMidiAutoConnector *mAutoConnector;
+#endif
 
     QComboBox *mDeviceSelection;
     QProgressBar * mInputEventStrengthBar;

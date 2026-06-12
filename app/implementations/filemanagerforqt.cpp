@@ -27,6 +27,7 @@
 #include <QDir>
 #include <QFile>
 #include <QTextStream>
+#include <QStringConverter>
 
 #include "core/system/log.h"
 #include "core/system/eptexception.h"
@@ -97,7 +98,11 @@ std::wstring FileManagerForQt::getAlgorithmInformationFileContent (const std::st
         EPT_EXCEPT(EptException::ERR_CANNOT_READ_FROM_FILE, "File '" + algorithmId + "' could not be opened.");
 
     QTextStream stream(&file);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    stream.setEncoding(QStringConverter::Utf8);
+#else
     stream.setCodec("UTF-8");
+#endif
     stream.setAutoDetectUnicode(true);
     QString content = stream.readAll();
     return content.toStdWString();

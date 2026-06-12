@@ -19,7 +19,9 @@
 
 #include "optionspageaudio.h"
 #include "optionspageaudioinputoutputpage.h"
+#if EPT_HAS_QTMIDI
 #include "optionspageaudiomidipage.h"
+#endif
 #include "mainwindow/mainwindow.h"
 
 namespace options {
@@ -28,9 +30,11 @@ PageAudio::PageAudio(OptionsDialog *optionsDialog) :
     PageSavingTabWidget("audio"),
     CentralWidgetInterface(this)
 {
-    this->addTab(new PageAudioInputOutput(optionsDialog, QAudio::AudioInput), tr("Input device"));
-    this->addTab(new PageAudioInputOutput(optionsDialog, QAudio::AudioOutput), tr("Output device"));
+    this->addTab(new PageAudioInputOutput(optionsDialog, QAudioDevice::Input), tr("Input device"));
+    this->addTab(new PageAudioInputOutput(optionsDialog, QAudioDevice::Output), tr("Output device"));
+#if EPT_HAS_QTMIDI
     this->addTab(new PageAudioMidi(optionsDialog, optionsDialog->getMainWindow()->getMidiAutoConnector()), tr("Midi"));
+#endif
 
     restorePageFromSettings();
 }

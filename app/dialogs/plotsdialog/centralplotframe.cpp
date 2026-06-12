@@ -161,8 +161,8 @@ void CentralPlotFrame::applyTouchTransform(int final) {
         mTouchPoints.clear();
     } else {
         // check timer
-        if (mPlotTimer.elapsed() > FLYING_UPDATE_INTERVALL_IN_MS) {
-            mPlotTimer = QTime();  // reset, but dont start
+        if (mPlotTimer.isValid() && mPlotTimer.elapsed() > FLYING_UPDATE_INTERVALL_IN_MS) {
+            mPlotTimer.invalidate();  // reset, but dont start
             if (newRect.isNull() == false) {
                 mNonStackInvisibleZoomer->zoom(newRect);
                 replot();
@@ -197,9 +197,7 @@ bool CentralPlotFrame::touchEvent(QTouchEvent *e) {
             mPlotTimer.start();
         }
     } else {
-        for (int i = 0; i < points.size(); ++i) {
-            mTouchPoints[i].setPos(points[i].pos());
-        }
+        mTouchPoints = points;
         applyTouchTransform(false);
     }
 

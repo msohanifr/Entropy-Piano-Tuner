@@ -21,7 +21,7 @@
 #include <QXmlStreamWriter>
 #include <QXmlStreamReader>
 #include <QTextStream>
-#include <QTextCodec>
+#include <QStringConverter>
 #include <QDebug>
 #include <chrono>
 #include <sstream>
@@ -172,7 +172,11 @@ void PianoFileIOXml::write(QIODevice *device, const Piano &piano) const {
     // write content as UTF-8
     std::wstring content = writer.close();
     QTextStream stream(device);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    stream.setEncoding(QStringConverter::Utf8);
+#else
     stream.setCodec("UTF-8");
+#endif
     stream << QString::fromStdWString(content);
     stream.flush();
 
@@ -193,7 +197,11 @@ void PianoFileIOXml::read(QIODevice *device, Piano &piano) {
 
     // read all as UTF-8
     QTextStream stream(device);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    stream.setEncoding(QStringConverter::Utf8);
+#else
     stream.setCodec("UTF-8");
+#endif
     reader.openString(stream.readAll().toStdWString());
 
     while (!reader.atEnd()) {

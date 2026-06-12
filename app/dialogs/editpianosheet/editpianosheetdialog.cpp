@@ -122,7 +122,7 @@ bool EditPianoSheetDialog::eventFilter(QObject *o, QEvent *e) {
     if (o == ui->scrollAreaWidgetContents && e->type() == QEvent::Resize) {
         setMinimumWidth(ui->scrollAreaWidgetContents->minimumSizeHint().width()
                         + ui->scrollArea->verticalScrollBar()->width()
-                        + ui->scrollAreaWidgetContents->layout()->margin() * 2);
+                        + ui->scrollAreaWidgetContents->layout()->contentsMargins().left() * 2);
     }
 
     return false;

@@ -22,6 +22,8 @@
 
 #include <QSpinBox>
 #include <QThread>
+#include <QAudioDevice>
+#include <QMediaDevices>
 
 #include "prerequisites.h"
 
@@ -48,7 +50,7 @@ public:
     /// \param optionsDialog The options dialog
     /// \param mode The mode of the audio settings page
     ///
-    PageAudioInputOutput(OptionsDialog *optionsDialog, QAudio::Mode mode);
+    PageAudioInputOutput(OptionsDialog *optionsDialog, QAudioDevice::Mode mode);
 
     virtual ~PageAudioInputOutput();
 
@@ -78,7 +80,7 @@ private slots:
     ///
     void onDefaultSamplingRate();
 
-    void addDevice(QAudioDeviceInfo info);
+    void addDevice(QAudioDevice info);
 
     // special audio output
     // ====================================================================
@@ -96,7 +98,7 @@ private slots:
 private:
     OptionsDialog *mOptionsDialog;      ///< Pointer to the options dialog
     AudioInterfaceForQt *mAudioInterface;    ///< Pointer to the audio base (input/output)
-    QAudio::Mode mMode;                 ///< Mode of this page
+    QAudioDevice::Mode mMode;                 ///< Mode of this page
 
     QComboBox *mDeviceSelection;        ///< Item to select the device
     QComboBox *mSamplingRates;          ///< Item to select the sampling rate
@@ -113,17 +115,17 @@ class DeviceLoaderThread : public QThread
 {
     Q_OBJECT
 public:
-    DeviceLoaderThread(QObject *parent, QAudio::Mode mode);
+    DeviceLoaderThread(QObject *parent, QAudioDevice::Mode mode);
 
 private:
     virtual void run() override final;
 
 signals:
     void updateProgress(int percentageCompleted);
-    void deviceReady(QAudioDeviceInfo device);
+    void deviceReady(QAudioDevice device);
 
 private:
-    QAudio::Mode mMode;
+    QAudioDevice::Mode mMode;
 };
 
 }  // namespace options

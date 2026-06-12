@@ -57,5 +57,15 @@
 #   define CONFIG_ENABLE_UPDATE_TOOL     1
 #endif
 
+#if defined(__has_include)
+#   if __has_include(<QtMidi/qmidiautoconnector.h>)
+#       define EPT_HAS_QTMIDI 1
+#   else
+#       define EPT_HAS_QTMIDI 0
+#   endif
+#else
+#   define EPT_HAS_QTMIDI 0
+#endif
+
 #endif // QTCONFIG_H
 

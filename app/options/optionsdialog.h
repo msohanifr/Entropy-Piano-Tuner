@@ -21,7 +21,7 @@
 #define OPTIONSDIALOG_H
 
 #include <QDialog>
-#include <QAudioDeviceInfo>
+#include <QAudioDevice>
 #include <QVBoxLayout>
 #include <QGridLayout>
 #include <QFormLayout>

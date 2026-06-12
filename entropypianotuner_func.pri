@@ -191,8 +191,8 @@ defineReplace(depends_qwt) {
             DLLS += $$(QTDIR)/bin/Qt5OpenGL.dll
         }
     } else:macx {
-        # use framework on mac
-        LIBS += -F$$EPT_ROOT_OUT_DIR/thirdparty/qwt-lib -framework qwt
+        # Link against the qwt dylib; QwtFramework is disabled for Qt 6 migration.
+        LIBS += -lqwt
     } else:android {
         LIBS += -lqwt
         ANDROID_EXTRA_LIBS += \

@@ -53,7 +53,7 @@ PlotsDialog::PlotsDialog(const Piano &piano, QWidget *parent) :
     CentralPlotFrame *plot = new CentralPlotFrame(mKeyboard.getNumberOfKeys(), getKeyOffset());
 
     QVBoxLayout *mainLayout = new QVBoxLayout;
-    mainLayout->setMargin(0);
+    mainLayout->setContentsMargins(0, 0, 0, 0);
     setLayout(mainLayout);
 
     QLayout *plotLayout = mainLayout;
@@ -64,7 +64,7 @@ PlotsDialog::PlotsDialog(const Piano &piano, QWidget *parent) :
     mainLayout->addWidget(toolBar);
 
     QHBoxLayout *barLayout = new QHBoxLayout;
-    barLayout->setMargin(0);
+    barLayout->setContentsMargins(0, 0, 0, 0);
     mainLayout->addLayout(barLayout);
 
     QToolBar *navBar = toolBar;
@@ -74,7 +74,7 @@ PlotsDialog::PlotsDialog(const Piano &piano, QWidget *parent) :
         navBar->setOrientation(Qt::Vertical);
 
         QHBoxLayout *vTbExtraLayout = new QHBoxLayout;
-        vTbExtraLayout->setMargin(0);
+        vTbExtraLayout->setContentsMargins(0, 0, 0, 0);
         mainLayout->addLayout(vTbExtraLayout);
         vTbExtraLayout->addWidget(navBar);
 

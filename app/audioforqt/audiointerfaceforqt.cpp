@@ -6,23 +6,21 @@
 
 const int AudioInterfaceForQt::DEFAULT_BUFFER_SIZE_MS(100);
 
-AudioInterfaceForQt::AudioInterfaceForQt(QAudio::Mode mode, QObject *parent)
+AudioInterfaceForQt::AudioInterfaceForQt(QAudioDevice::Mode mode, QObject *parent)
     : QObject(parent)
     , mMode(mode)
-    , mSettingsPrefix(mode == QAudio::AudioInput ? "audio/input/" : "audio/output/")
+    , mSettingsPrefix(mode == QAudioDevice::Input ? "audio/input/" : "audio/output/")
     , mPCMDevice(this)
 {
     // these settings are fixed
-    mFormat.setCodec("audio/pcm");
-    mFormat.setSampleSize(sizeof(PCMDevice::DataType) * 8);
-    mFormat.setSampleType(QAudioFormat::SignedInt);
+    mFormat.setSampleFormat(QAudioFormat::Int16);
 
     // default values, these can be changed
-    mFormat.setSampleRate(mode == QAudio::AudioInput ? 44100 : 22050);
-    mFormat.setChannelCount(mode == QAudio::AudioInput ? 1 : 2);
+    mFormat.setSampleRate(mode == QAudioDevice::Input ? 44100 : 22050);
+    mFormat.setChannelCount(mode == QAudioDevice::Input ? 1 : 2);
 }
 
-void AudioInterfaceForQt::reinitialize(int samplingRate, int channelCount, QAudioDeviceInfo deviceInfo, int bufferSizeMS)
+void AudioInterfaceForQt::reinitialize(int samplingRate, int channelCount, QAudioDevice deviceInfo, int bufferSizeMS)
 {
     exit();
 
@@ -33,7 +31,10 @@ void AudioInterfaceForQt::reinitialize(int samplingRate, int channelCount, QAudi
     // only necessary if default settings
     if (!deviceInfo.isFormatSupported(mFormat)) {
         LogW("Raw audio format not supported by backend, falling back to nearest supported");
-        mFormat = deviceInfo.nearestFormat(mFormat);
+        QAudioFormat preferred = deviceInfo.preferredFormat();
+        preferred.setSampleFormat(QAudioFormat::Int16);
+        preferred.setChannelCount(channelCount);
+        mFormat = preferred;
         // update sampling rate, buffer type has to stay the same!
         if (not deviceInfo.isFormatSupported(mFormat))
         {
@@ -41,12 +42,7 @@ void AudioInterfaceForQt::reinitialize(int samplingRate, int channelCount, QAudi
             return;
         }
 
-        if (mFormat.sampleSize() != sizeof(PCMDevice::DataType) * 8) {
-            LogW("Sample size not supported");
-            return;
-        }
-
-        if (mFormat.sampleType() != QAudioFormat::SignedInt) {
+        if (mFormat.sampleFormat() != QAudioFormat::Int16) {
             LogW("Sample format not supported");
             return;
         }
@@ -63,7 +59,7 @@ void AudioInterfaceForQt::reinitialize(int samplingRate, int channelCount, QAudi
     QSettings s;
     s.setValue(mSettingsPrefix + "samplerate", QVariant::fromValue(mFormat.sampleRate()));
     s.setValue(mSettingsPrefix + "channels", QVariant::fromValue(mFormat.channelCount()));
-    s.setValue(mSettingsPrefix + "devicename", QVariant::fromValue(mDeviceInfo.deviceName()));
+    s.setValue(mSettingsPrefix + "devicename", QVariant::fromValue(QString::fromUtf8(mDeviceInfo.description().toUtf8())));
     s.setValue(mSettingsPrefix + "buffersize", QVariant::fromValue(bufferSizeMS));
 }
 
@@ -72,18 +68,19 @@ void AudioInterfaceForQt::init()
     QSettings s;
 
     // get device info
-    mDeviceInfo = QAudioDeviceInfo();
+    mDeviceInfo = QAudioDevice();
     QString deviceName = s.value(mSettingsPrefix + "devicename").toString();
     if (deviceName.isEmpty()) {
-        if (mMode == QAudio::AudioInput) {
-            mDeviceInfo = QAudioDeviceInfo::defaultInputDevice();
-        } else if (mMode == QAudio::AudioOutput) {
-            mDeviceInfo = QAudioDeviceInfo::defaultOutputDevice();
+        if (mMode == QAudioDevice::Input) {
+            mDeviceInfo = QMediaDevices::defaultAudioInput();
+        } else if (mMode == QAudioDevice::Output) {
+            mDeviceInfo = QMediaDevices::defaultAudioOutput();
         }
     } else {
-        QList<QAudioDeviceInfo> devices = QAudioDeviceInfo::availableDevices(mMode);
-        for (QAudioDeviceInfo d : devices) {
-            if (d.deviceName() == deviceName) {
+        QList<QAudioDevice> devices = (mMode == QAudioDevice::Input)
+                ? QMediaDevices::audioInputs() : QMediaDevices::audioOutputs();
+        for (QAudioDevice d : devices) {
+            if (d.description() == deviceName) {
                 mDeviceInfo = d;
                 break;
             }
@@ -91,10 +88,10 @@ void AudioInterfaceForQt::init()
     }
 
     if (mDeviceInfo.isNull()) {
-        if (mMode == QAudio::AudioInput) {
-            mDeviceInfo = QAudioDeviceInfo::defaultInputDevice();
-        } else if (mMode == QAudio::AudioOutput) {
-            mDeviceInfo = QAudioDeviceInfo::defaultOutputDevice();
+        if (mMode == QAudioDevice::Input) {
+            mDeviceInfo = QMediaDevices::defaultAudioInput();
+        } else if (mMode == QAudioDevice::Output) {
+            mDeviceInfo = QMediaDevices::defaultAudioOutput();
         }
     }
 
@@ -103,7 +100,7 @@ void AudioInterfaceForQt::init()
     mFormat.setChannelCount(s.value(mSettingsPrefix + "channels", QVariant::fromValue(mFormat.channelCount())).toInt());
 
     // these settings are required
-    if (mMode == QAudio::AudioInput) {
+    if (mMode == QAudioDevice::Input) {
         mFormat.setChannelCount(1);
     }
 
@@ -116,7 +113,7 @@ void AudioInterfaceForQt::init()
 
 const std::string AudioInterfaceForQt::getDeviceName() const
 {
-    return mDeviceInfo.deviceName().toStdString();
+    return mDeviceInfo.description().toStdString();
 }
 
 int AudioInterfaceForQt::getSamplingRate() const
