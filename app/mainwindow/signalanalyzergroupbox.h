@@ -36,10 +36,18 @@ public:
 
     void setKey(QString key) {mKeyLabel->setText(key);}
     void setFrequency(QString f) {mFrequencyLabel->setText(f);}
+    void setStatus(const QString &status);
+    void setHint(const QString &hint);
+    void setQuality(const QString &quality);
+    void setRecordedProgress(int recordedKeys, int totalKeys);
 
 private:
     QLabel *mKeyLabel;
     QLabel *mFrequencyLabel;
+    QLabel *mStatusLabel;
+    QLabel *mHintLabel;
+    QLabel *mQualityLabel;
+    QLabel *mProgressLabel;
 };
 
 #endif // SIGNALANALYZERGROUPBOX_H

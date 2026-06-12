@@ -24,10 +24,12 @@
 #include "../core/messages/messagemodechanged.h"
 #include "../core/messages/messageprojectfile.h"
 #include "../core/messages/messagekeyselectionchanged.h"
+#include "../core/messages/messagekeydatachanged.h"
 #include "../core/messages/messagerecorderenergychanged.h"
 #include "../core/messages/messagefinalkey.h"
 #include "../core/messages/messagecaluclationprogress.h"
 #include "../core/messages/messagenewfftcalculated.h"
+#include "../core/messages/messagetuningdeviation.h"
 #include "../core/messages/messagesignalanalysis.h"
 #include "../core/system/version.h"
 #include "../core/system/serverinfo.h"
@@ -38,6 +40,7 @@
 #include <QToolButton>
 #include <QStatusBar>
 #include <QButtonGroup>
+#include <QAction>
 #include <QWhatsThis>
 #include <QShortcut>
 #include <QGuiApplication>
@@ -201,6 +204,20 @@ MainWindow::MainWindow(QWidget *parent) :
     mFileToolBar->addAction(QIcon(":/media/icons/mathematical_plot.png"), tr("Graphs"), this, SLOT(onOpenPlots()));
     mFileToolBar->setContextMenuPolicy(Qt::PreventContextMenu);
 
+    mRecordingGuideToolBar = new QToolBar(tr("Recording guide"));
+    mRecordingGuideToolBar->setObjectName("recordingGuideToolBar");
+    addToolBar(Qt::TopToolBarArea, mRecordingGuideToolBar);
+    mRecordingGuideToolBar->setAllowedAreas(Qt::TopToolBarArea | Qt::LeftToolBarArea);
+    mRecordingGuideToolBar->setMovable(false);
+    mRecordingGuideToolBar->setIconSize(mFileToolBar->iconSize());
+    mRecordingGuideToolBar->setContextMenuPolicy(Qt::PreventContextMenu);
+    mGuidePreviousAction = mRecordingGuideToolBar->addAction(iconFromTheme("go-previous"), tr("Previous key"), this, SLOT(onGuidePreviousKey()));
+    mGuideNextAction = mRecordingGuideToolBar->addAction(iconFromTheme("go-next"), tr("Next unrecorded"), this, SLOT(onGuideNextKey()));
+    mGuideRepeatAction = mRecordingGuideToolBar->addAction(iconFromTheme("media-playback-start"), tr("Force repeat"), this, SLOT(onGuideRepeatKey()));
+    mRecordingGuideToolBar->addSeparator();
+    mGuideCalibrateAction = mRecordingGuideToolBar->addAction(iconFromTheme("audio-input-microphone"), tr("Calibrate noise"), this, SLOT(onGuideCalibrateNoise()));
+    mRecordingGuideToolBar->setVisible(false);
+
     QToolBar *helpToolBar = new QToolBar(tr("Help"));
     helpToolBar->setObjectName("helpToolBar");
     addToolBar(Qt::TopToolBarArea, helpToolBar);
@@ -351,6 +368,9 @@ void MainWindow::start() {
     }
 
     updateWindowTitle();
+    updateRecordingProgress();
+    updateSelectedKeyQuality(mKeyboardGraphicsView->getSelectedKey());
+    updateGuidedRecordingActions();
 
     // check for updates
     VersionCheck *versionChecker = new VersionCheck(this);
@@ -401,6 +421,8 @@ void MainWindow::handleMessage(MessagePtr m) {
             break;
         }
 
+        updateRecordingProgress();
+        updateGuidedRecordingActions();
         break;
     }
     case Message::MSG_MODE_CHANGED: {
@@ -441,6 +463,10 @@ void MainWindow::handleMessage(MessagePtr m) {
             }
         }
 
+        if (mRecordingGuideToolBar) {
+            mRecordingGuideToolBar->setVisible(mmc->getMode() == MODE_RECORDING);
+        }
+
         if (mmc->getMode() == MODE_TUNING) {
 
             // perform a small check if tuning is possible
@@ -471,10 +497,15 @@ void MainWindow::handleMessage(MessagePtr m) {
         }
 
         updateFrequency(mKeyboardGraphicsView->getSelectedKey());
+        updateSelectedKeyQuality(mKeyboardGraphicsView->getSelectedKey());
+        updateRecordingProgress();
+        updateGuidedRecordingActions();
         break;
     }
     case Message::MSG_RECORDING_STARTED:
         statusBar()->showMessage(tr("Recording keystroke"));
+        mSignalAnalyzerGroup->setStatus(tr("Listening"));
+        mSignalAnalyzerGroup->setHint(tr("Hold the note until analysis starts."));
         if (DisplaySizeDefines::getSingleton()->getGraphDisplayMode() == GDM_ONE_VISIBLE) {
             ui->tuningCurveGraphicsView->setVisible(false);
             ui->fourierSpectrumGraphics->setVisible(true);
@@ -485,6 +516,8 @@ void MainWindow::handleMessage(MessagePtr m) {
         auto msa(std::static_pointer_cast<MessageSignalAnalysis>(m));
         if (msa->status() == MessageSignalAnalysis::Status::STARTED) {
             statusBar()->showMessage(tr("Signal analysis started"));
+            mSignalAnalyzerGroup->setStatus(tr("Analyzing"));
+            mSignalAnalyzerGroup->setHint(tr("Processing the recorded tone."));
         } else {
             if (DisplaySizeDefines::getSingleton()->getGraphDisplayMode() == GDM_ONE_VISIBLE) {
                 ui->fourierSpectrumGraphics->setVisible(false);
@@ -493,9 +526,13 @@ void MainWindow::handleMessage(MessagePtr m) {
             switch (msa->result()) {
             case MessageSignalAnalysis::Result::SUCCESSFULL:
                 statusBar()->showMessage(tr("Signal analysis ended"));
+                mSignalAnalyzerGroup->setStatus(tr("Accepted"));
+                mSignalAnalyzerGroup->setHint(tr("Recording accepted. Continue with the next unrecorded key."));
                 break;
             case MessageSignalAnalysis::Result::INVALID:
                 statusBar()->showMessage(tr("Signal analysis failed"));
+                mSignalAnalyzerGroup->setStatus(tr("Rejected"));
+                mSignalAnalyzerGroup->setHint(tr("No stable pitch was found. Play one clear key, or force the selected key and retry."));
                 if (!mClosing && mCurrentMode == MODE_RECORDING) {
                     if (msa->invalidAttempts() >= MAX_NUMBER_OF_INVALID_RECORDINGS_BEFORE_USER_INFORMATION) {
                         LogD("Maximum number of invalid recordings reached. Trying to inform the user.");
@@ -503,6 +540,9 @@ void MainWindow::handleMessage(MessagePtr m) {
                     }
                 }
             }
+            updateRecordingProgress();
+            updateSelectedKeyQuality(mKeyboardGraphicsView->getSelectedKey());
+            updateGuidedRecordingActions();
         }
         break;
     }
@@ -510,12 +550,30 @@ void MainWindow::handleMessage(MessagePtr m) {
         auto mksc(std::static_pointer_cast<MessageKeySelectionChanged>(m));
         updateNoteName(mksc->getKeyNumber());
         updateFrequency(mksc->getKey());
+        updateSelectedKeyQuality(mksc->getKey());
+        if (mCurrentMode == MODE_RECORDING) {
+            if (mksc->isForced()) {
+                mSignalAnalyzerGroup->setStatus(tr("Forced key"));
+                mSignalAnalyzerGroup->setHint(tr("Play the selected key again to overwrite this pitch."));
+            } else {
+                mSignalAnalyzerGroup->setStatus(tr("Ready"));
+                mSignalAnalyzerGroup->setHint(tr("Play the selected key clearly."));
+            }
+        }
+        updateGuidedRecordingActions();
         break;}
     case Message::MSG_RECORDER_ENERGY_CHANGED: {
         auto mrec(std::static_pointer_cast<MessageRecorderEnergyChanged>(m));
         if (mrec->getLevelType() == MessageRecorderEnergyChanged::LevelType::LEVEL_OFF) {
             // off level changed, adjust the volume bar indicator positions
             updateVolumeBar();
+        } else if (mCurrentMode == MODE_RECORDING) {
+            if (mrec->getLevel() > 0.92) {
+                mSignalAnalyzerGroup->setStatus(tr("Input too hot"));
+                mSignalAnalyzerGroup->setHint(tr("Lower the input gain or move the microphone farther away."));
+            } else if (mrec->getLevel() < mCore->getAudioRecorder()->getStopLevel()) {
+                mSignalAnalyzerGroup->setHint(tr("Waiting for a clear note above the trigger level."));
+            }
         }
         break;
     }
@@ -523,6 +581,22 @@ void MainWindow::handleMessage(MessagePtr m) {
         auto message(std::static_pointer_cast<MessageFinalKey>(m));
         auto keyptr = message->getFinalKey(); // get shared pointer to the new key
         updateFrequency(keyptr.get());
+        updateSelectedKeyQuality(keyptr.get());
+        break;
+    }
+    case Message::MSG_KEY_DATA_CHANGED: {
+        auto mkdc(std::static_pointer_cast<MessageKeyDataChanged>(m));
+        if (mkdc->getIndex() == mKeyboardGraphicsView->getSelectedKeyIndex()) {
+            updateFrequency(mkdc->getKey());
+            updateSelectedKeyQuality(mkdc->getKey());
+        }
+        updateRecordingProgress();
+        updateGuidedRecordingActions();
+        break;
+    }
+    case Message::MSG_TUNING_DEVIATION: {
+        auto mtd(std::static_pointer_cast<MessageTuningDeviation>(m));
+        mTuningIndicatorGroup->setDeviation(mtd->getResult());
         break;
     }
     case Message::MSG_CALCULATION_PROGRESS: {
@@ -588,6 +662,106 @@ void MainWindow::updateWindowTitle() {
 
 void MainWindow::updateVolumeBar() {
     mVolumeControlGroup->updateLevels(mCore->getAudioRecorder()->getStopLevel(), AudioRecorder::LEVEL_TRIGGER);
+}
+
+void MainWindow::updateRecordingProgress()
+{
+    if (!mCore || !mSignalAnalyzerGroup) {
+        return;
+    }
+
+    const auto &keys = mCore->getPianoManager()->getPiano().getKeyboard().getKeys();
+    int recordedKeys = 0;
+    for (const Key &key : keys) {
+        if (key.isRecorded()) {
+            recordedKeys++;
+        }
+    }
+    mSignalAnalyzerGroup->setRecordedProgress(recordedKeys, static_cast<int>(keys.size()));
+}
+
+void MainWindow::updateSelectedKeyQuality(const Key *key)
+{
+    if (!mSignalAnalyzerGroup) {
+        return;
+    }
+
+    if (!key || !key->isRecorded()) {
+        mSignalAnalyzerGroup->setQuality(tr("Quality: not recorded"));
+        return;
+    }
+
+    const double quality = key->getRecognitionQuality();
+    QString rating = tr("weak");
+    if (quality >= 0.75) {
+        rating = tr("good");
+    } else if (quality >= 0.45) {
+        rating = tr("usable");
+    }
+    mSignalAnalyzerGroup->setQuality(tr("Quality: %1 (%2%)")
+                                     .arg(rating)
+                                     .arg(static_cast<int>(quality * 100 + 0.5)));
+}
+
+void MainWindow::selectGuideKey(int key, piano::KeyState state)
+{
+    if (!mCore || !mKeyboardGraphicsView) {
+        return;
+    }
+
+    const Keyboard &keyboard = mCore->getPianoManager()->getPiano().getKeyboard();
+    if (key < 0 || key >= keyboard.getNumberOfKeys()) {
+        return;
+    }
+
+    MessageHandler::send<MessageKeySelectionChanged>(key, keyboard.getKeyPtr(key), state);
+    mKeyboardGraphicsView->centerOnKey(key);
+}
+
+int MainWindow::findNextGuideKey(int startKey, int direction, bool preferUnrecorded) const
+{
+    if (!mCore) {
+        return -1;
+    }
+
+    const Keyboard &keyboard = mCore->getPianoManager()->getPiano().getKeyboard();
+    const int count = keyboard.getNumberOfKeys();
+    if (count <= 0) {
+        return -1;
+    }
+
+    int key = startKey;
+    if (key < 0 || key >= count) {
+        key = (direction >= 0) ? -1 : 0;
+    }
+
+    for (int pass = 0; pass < (preferUnrecorded ? 2 : 1); ++pass) {
+        for (int i = 0; i < count; ++i) {
+            key = (key + direction + count) % count;
+            if (!preferUnrecorded || pass == 1 || !keyboard.at(key).isRecorded()) {
+                return key;
+            }
+        }
+    }
+
+    return key;
+}
+
+void MainWindow::updateGuidedRecordingActions()
+{
+    const bool enabled = mCore && mKeyboardGraphicsView && mCurrentMode == MODE_RECORDING;
+    if (mGuidePreviousAction) {
+        mGuidePreviousAction->setEnabled(enabled);
+    }
+    if (mGuideNextAction) {
+        mGuideNextAction->setEnabled(enabled);
+    }
+    if (mGuideRepeatAction) {
+        mGuideRepeatAction->setEnabled(enabled && mKeyboardGraphicsView->getSelectedKeyIndex() >= 0);
+    }
+    if (mGuideCalibrateAction) {
+        mGuideCalibrateAction->setEnabled(enabled);
+    }
 }
 
 void MainWindow::onOpenSoundControl() {
@@ -815,6 +989,36 @@ void MainWindow::onToggleTuningIndictator()
 
 void MainWindow::onExport() {
     mCore->getProjectManager()->onExport();
+}
+
+void MainWindow::onGuidePreviousKey()
+{
+    const int selected = mKeyboardGraphicsView ? mKeyboardGraphicsView->getSelectedKeyIndex() : -1;
+    selectGuideKey(findNextGuideKey(selected, -1, false));
+}
+
+void MainWindow::onGuideNextKey()
+{
+    const int selected = mKeyboardGraphicsView ? mKeyboardGraphicsView->getSelectedKeyIndex() : -1;
+    selectGuideKey(findNextGuideKey(selected, 1, true));
+}
+
+void MainWindow::onGuideRepeatKey()
+{
+    const int selected = mKeyboardGraphicsView ? mKeyboardGraphicsView->getSelectedKeyIndex() : -1;
+    if (selected >= 0) {
+        selectGuideKey(selected, piano::STATE_FORCED);
+        mSignalAnalyzerGroup->setStatus(tr("Forced key"));
+        mSignalAnalyzerGroup->setHint(tr("Play the selected key again to replace its recording."));
+    }
+}
+
+void MainWindow::onGuideCalibrateNoise()
+{
+    onResetNoiseLevel();
+    mSignalAnalyzerGroup->setStatus(tr("Noise calibrated"));
+    mSignalAnalyzerGroup->setHint(tr("Keep the room quiet, then play the selected key."));
+    statusBar()->showMessage(tr("Microphone noise floor recalibrated"));
 }
 
 void MainWindow::onVersionUpdate(VersionInformation information) {

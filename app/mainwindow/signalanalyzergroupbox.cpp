@@ -21,6 +21,7 @@
 #include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <QLabel>
+#include <QFrame>
 
 #include "recordingqualitybar.h"
 #include "recordingstatusgraphicsview.h"
@@ -47,6 +48,21 @@ SignalAnalyzerGroupBox::SignalAnalyzerGroupBox(QWidget *parent) :
 
     labelsLayout->addStretch();
 
+    mStatusLabel = new QLabel(tr("Ready"));
+    mStatusLabel->setAlignment(Qt::AlignCenter);
+    labelsLayout->addWidget(mStatusLabel);
+
+    mHintLabel = new QLabel(tr("Select a key and play it clearly."));
+    mHintLabel->setAlignment(Qt::AlignCenter);
+    mHintLabel->setWordWrap(true);
+    mHintLabel->setMinimumWidth(mHintLabel->fontMetrics().horizontalAdvance("Signal level is too high."));
+    labelsLayout->addWidget(mHintLabel);
+
+    QFrame *line = new QFrame(this);
+    line->setFrameShape(QFrame::HLine);
+    line->setFrameShadow(QFrame::Sunken);
+    labelsLayout->addWidget(line);
+
     mKeyLabel = new QLabel("-");
     mKeyLabel->setAlignment(Qt::AlignCenter);
     QFont keyLabelFont;
@@ -70,6 +86,13 @@ SignalAnalyzerGroupBox::SignalAnalyzerGroupBox(QWidget *parent) :
     hzLabel->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
     hzLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
 
+    mQualityLabel = new QLabel(tr("Quality: -"));
+    mQualityLabel->setAlignment(Qt::AlignCenter);
+    labelsLayout->addWidget(mQualityLabel);
+
+    mProgressLabel = new QLabel(tr("Recorded: -"));
+    mProgressLabel->setAlignment(Qt::AlignCenter);
+    labelsLayout->addWidget(mProgressLabel);
 
     labelsLayout->addStretch();
 
@@ -78,5 +101,32 @@ SignalAnalyzerGroupBox::SignalAnalyzerGroupBox(QWidget *parent) :
     mKeyLabel->setWhatsThis(tr("This label displays the current selected key."));
     mFrequencyLabel->setWhatsThis(tr("This label shows the ground frequency of the selected key."));
     hzLabel->setWhatsThis(mFrequencyLabel->whatsThis());
+    mStatusLabel->setWhatsThis(tr("Current recording and analysis state."));
+    mHintLabel->setWhatsThis(tr("Short guidance for the current recording state."));
+    mQualityLabel->setWhatsThis(tr("Recognition quality for the selected key."));
+    mProgressLabel->setWhatsThis(tr("Number of keys with accepted recordings."));
 }
 
+void SignalAnalyzerGroupBox::setStatus(const QString &status)
+{
+    mStatusLabel->setText(status);
+}
+
+void SignalAnalyzerGroupBox::setHint(const QString &hint)
+{
+    mHintLabel->setText(hint);
+}
+
+void SignalAnalyzerGroupBox::setQuality(const QString &quality)
+{
+    mQualityLabel->setText(quality);
+}
+
+void SignalAnalyzerGroupBox::setRecordedProgress(int recordedKeys, int totalKeys)
+{
+    if (totalKeys <= 0) {
+        mProgressLabel->setText(tr("Recorded: -"));
+        return;
+    }
+    mProgressLabel->setText(tr("Recorded: %1/%2").arg(recordedKeys).arg(totalKeys));
+}

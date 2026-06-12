@@ -20,11 +20,16 @@
 #ifndef TUNINGINDICATORGROUPBOX_H
 #define TUNINGINDICATORGROUPBOX_H
 
+#include <memory>
+
 #include "prerequisites.h"
 
 #include "drawers/tuningindicatorview.h"
 #include "widgets/displaysizedependinggroupbox.h"
 
+class QLabel;
+struct FrequencyDetectionResultStruct;
+using FrequencyDetectionResult = std::shared_ptr<FrequencyDetectionResultStruct>;
 
 class TuningIndicatorGroupBox : public DisplaySizeDependingGroupBox
 {
@@ -32,9 +37,13 @@ public:
     TuningIndicatorGroupBox(QWidget *parent);
 
     TuningIndicatorView* getTunincIndicatorView() { return graph; }
+    void setDeviation(FrequencyDetectionResult result);
+    void clearDeviation();
 
 private:
     TuningIndicatorView *graph;
+    QLabel *mCentsLabel;
+    QLabel *mDirectionLabel;
 };
 
 #endif // TUNINGINDICATORGROUPBOX_H

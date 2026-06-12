@@ -24,6 +24,8 @@
 #include <QKeyEvent>
 #include <QDebug>
 #include <QScrollBar>
+#include <QPushButton>
+#include <QHBoxLayout>
 #include "ui_editpianosheetdialog.h"
 #include "../core/config.h"
 #include "../core/piano/piano.h"
@@ -37,6 +39,31 @@ EditPianoSheetDialog::EditPianoSheetDialog(const Piano &piano, QWidget *parent) 
 {
     ui->setupUi(this);
     setModal(true);
+
+    QHBoxLayout *presetLayout = new QHBoxLayout;
+    QPushButton *grandPreset = new QPushButton(tr("Grand"), this);
+    QPushButton *uprightPreset = new QPushButton(tr("Upright"), this);
+    QPushButton *compactPreset = new QPushButton(tr("Compact upright"), this);
+    presetLayout->addWidget(grandPreset);
+    presetLayout->addWidget(uprightPreset);
+    presetLayout->addWidget(compactPreset);
+    ui->pianoManufacturerInformationLayout->insertRow(0, tr("Preset"), presetLayout);
+
+    auto applyPreset = [this] (piano::PianoType type, int numberOfKeys, int keyNumberOfA, int bassKeys) {
+        ui->pianoType->setCurrentIndex(type);
+        ui->numberOfKeysSpinBox->setValue(numberOfKeys);
+        ui->keyNumberOfASpinBox->setValue(keyNumberOfA + 1);
+        ui->keysOnBassBridgeSpinBox->setValue(bassKeys);
+    };
+    connect(grandPreset, &QPushButton::clicked, this, [applyPreset] {
+        applyPreset(piano::PT_GRAND, 88, Piano::DEFAULT_KEY_NUMBER_OF_A, 28);
+    });
+    connect(uprightPreset, &QPushButton::clicked, this, [applyPreset] {
+        applyPreset(piano::PT_UPRIGHT, 88, Piano::DEFAULT_KEY_NUMBER_OF_A, 26);
+    });
+    connect(compactPreset, &QPushButton::clicked, this, [applyPreset] {
+        applyPreset(piano::PT_UPRIGHT, 85, Piano::DEFAULT_KEY_NUMBER_OF_A, 24);
+    });
 
     // if (DisplaySizeDefines::getSingleton()->isLEq(DS_XSMALL)) {
     //    // on small devices we need a bit more space for translated languages (e.g. German), reduce margins in general for xsmall devices

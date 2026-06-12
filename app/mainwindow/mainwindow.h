@@ -157,6 +157,12 @@ private:
     ///
     ///////////////////////////////////////////////////////////////////////////////
     void updateVolumeBar();
+
+    void updateRecordingProgress();
+    void updateSelectedKeyQuality(const Key *key);
+    void selectGuideKey(int key, piano::KeyState state = piano::STATE_NORMAL);
+    int findNextGuideKey(int startKey, int direction, bool preferUnrecorded) const;
+    void updateGuidedRecordingActions();
 private:
     /// Set to true if a close event was accepted
     bool mClosing = false;
@@ -189,6 +195,11 @@ private:
     ProgressDisplay *mProgressDisplay = nullptr;
 
     QToolBar *mFileToolBar = nullptr;
+    QToolBar *mRecordingGuideToolBar = nullptr;
+    QAction *mGuidePreviousAction = nullptr;
+    QAction *mGuideNextAction = nullptr;
+    QAction *mGuideRepeatAction = nullptr;
+    QAction *mGuideCalibrateAction = nullptr;
 
     /// Tool buttons for all modes.
     QToolButton *mModeToolButtons[OperationMode::MODE_COUNT];
@@ -356,6 +367,11 @@ public slots:
 
     /// \brief Slot to open the export dialog
     void onExport();
+
+    void onGuidePreviousKey();
+    void onGuideNextKey();
+    void onGuideRepeatKey();
+    void onGuideCalibrateNoise();
 
 
 private slots:

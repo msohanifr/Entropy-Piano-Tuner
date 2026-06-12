@@ -18,7 +18,12 @@
  *****************************************************************************/
 
 #include "tuningindicatorgroupbox.h"
+#include <cmath>
 #include <QHBoxLayout>
+#include <QLabel>
+#include <QVBoxLayout>
+
+#include "core/analyzers/fftanalyzererrorcodes.h"
 
 
 TuningIndicatorGroupBox::TuningIndicatorGroupBox(QWidget *parent) :
@@ -31,5 +36,56 @@ TuningIndicatorGroupBox::TuningIndicatorGroupBox(QWidget *parent) :
 
     graph = new TuningIndicatorView(this);
     mainLayout->addWidget(graph);
+
+    QVBoxLayout *readoutLayout = new QVBoxLayout;
+    readoutLayout->setContentsMargins(4, 0, 0, 0);
+    mainLayout->addLayout(readoutLayout);
+
+    mCentsLabel = new QLabel("-");
+    mCentsLabel->setAlignment(Qt::AlignCenter);
+    QFont centsFont;
+    centsFont.setPointSize(22);
+    centsFont.setBold(true);
+    mCentsLabel->setFont(centsFont);
+    mCentsLabel->setMinimumWidth(mCentsLabel->fontMetrics().horizontalAdvance("-000 ct"));
+    readoutLayout->addWidget(mCentsLabel);
+
+    mDirectionLabel = new QLabel(tr("Play selected key"));
+    mDirectionLabel->setAlignment(Qt::AlignCenter);
+    mDirectionLabel->setWordWrap(true);
+    readoutLayout->addWidget(mDirectionLabel);
+
+    readoutLayout->addStretch();
 }
 
+void TuningIndicatorGroupBox::setDeviation(FrequencyDetectionResult result)
+{
+    if (!result || result->hasError()) {
+        clearDeviation();
+        if (result && result->error == FFTAnalyzerErrorTypes::ERR_NO_PEAK_AMPLITUDE) {
+            mDirectionLabel->setText(tr("No stable peak"));
+        }
+        return;
+    }
+
+    const int cents = result->deviationInCents;
+    mCentsLabel->setText(tr("%1 ct").arg(cents));
+
+    if (std::abs(cents) <= 2) {
+        mDirectionLabel->setText(tr("In tune"));
+        mCentsLabel->setStyleSheet("color: #167a3a;");
+    } else if (cents > 0) {
+        mDirectionLabel->setText(tr("Lower pitch"));
+        mCentsLabel->setStyleSheet("color: #b45700;");
+    } else {
+        mDirectionLabel->setText(tr("Raise pitch"));
+        mCentsLabel->setStyleSheet("color: #b45700;");
+    }
+}
+
+void TuningIndicatorGroupBox::clearDeviation()
+{
+    mCentsLabel->setText("-");
+    mCentsLabel->setStyleSheet("");
+    mDirectionLabel->setText(tr("Play selected key"));
+}
