@@ -194,8 +194,12 @@ double KeyRecognizer::detectForcedFrequency()
     auto ftoq = [n,sr] (double f) { return MathTools::roundToInteger(2*n*f/sr); };
     auto qtof = [n,sr] (double q) { return sr*q/(2*n); };
     double f = mPiano->getEqualTempFrequency(mSelectedKey);
+    const int distanceFromA4 = mKeyNumberOfA - mSelectedKey;
+    if (distanceFromA4 > 36) f *= 4.0;
+    else if (distanceFromA4 > 24) f *= 2.0;
+
     const int q1 = std::max(0,ftoq(f/1.04));
-    const int q2 = std::min(ftoq(f*1.04),n);
+    const int q2 = std::min(ftoq(f*1.04),n - 1);
     double max=0;
     for (int q=q1; q<=q2; ++q) if (fft[q]>max)
     {
@@ -500,4 +504,3 @@ void KeyRecognizer::Write(std::string filename, std::vector<double> &v, bool log
     (void)filename; (void)v; (void)log; // suppress warnings
 #endif // CONFIG_ENABLE_XMGRACE
 }
-

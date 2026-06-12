@@ -99,6 +99,7 @@ private:
     void createPolygon (const FFTWVector &powerspec, FFTPolygon &poly) const;   // Create polygon for drawing
 
     int identifySelectedKey();              ///< identify final key
+    bool isSelectedLowKeyPartial(int detectedKey) const;
 
     // callbacks
     virtual void keyRecognized(int keyIndex, double frequency) override final;

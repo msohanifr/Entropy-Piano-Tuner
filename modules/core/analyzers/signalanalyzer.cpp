@@ -390,6 +390,13 @@ void SignalAnalyzer::analyzeSignal()
         return;
     }
 
+    if (isSelectedLowKeyPartial(keynumber))
+    {
+        LogI("Detected key %d is a low-key partial of selected key %d. Analyze selected key.",
+             keynumber, mSelectedKey);
+        keynumber = mSelectedKey;
+    }
+
     // check if found key equates the keynumber
     if (keynumber != mSelectedKey)
     {
@@ -797,6 +804,28 @@ int SignalAnalyzer::identifySelectedKey()
     if (max->second > static_cast<int>(mKeyCountStatistics.size()/2)) return max->first;
 
     return -1;
+}
+
+bool SignalAnalyzer::isSelectedLowKeyPartial(int detectedKey) const
+{
+    if (!mPiano || mSelectedKey < 0 || detectedKey < 0) {
+        return false;
+    }
+
+    const auto &keyboard = mPiano->getKeyboard();
+    const int keyNumberOfA4 = keyboard.getKeyNumberOfA4();
+    const int numberOfKeys = keyboard.getNumberOfKeys();
+    const int distanceFromA4 = keyNumberOfA4 - mSelectedKey;
+
+    if (mSelectedKey >= numberOfKeys || detectedKey >= numberOfKeys || distanceFromA4 <= 24) {
+        return false;
+    }
+
+    if (distanceFromA4 > 36 && detectedKey == mSelectedKey + 24) {
+        return true;
+    }
+
+    return detectedKey == mSelectedKey + 12;
 }
 
 //-----------------------------------------------------------------------------
